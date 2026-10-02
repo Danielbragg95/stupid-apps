@@ -20,9 +20,6 @@
   .tile.cut { border-color:var(--red); animation:shake .3s; }
   .tile.bot { animation:pop .4s; grid-column:span 2; }
   .name { position:absolute; left:10px; bottom:8px; background:#0009; padding:2px 8px; border-radius:6px; font-size:13px; }
-  .bubble { position:absolute; top:10px; left:10px; right:10px; background:#fff; color:#111; padding:8px 12px; border-radius:12px; font-weight:600; font-size:clamp(13px, 2vw, 18px); opacity:0; transform:translateY(-6px); transition:.15s; }
-  .bubble.show { opacity:1; transform:none; }
-  .tile.you .bubble { background:#ffe08a; }
   .tag { position:absolute; right:10px; bottom:8px; padding:2px 8px; border-radius:6px; font-size:12px; display:none; }
   .muted-tag { background:var(--red); }
   .tile.cut .muted-tag { display:block; }
@@ -58,7 +55,7 @@
   body.sharing #stage { grid-template-columns:repeat(5, 1fr); flex:0 0 110px; }
   body.sharing #stage .head { width:50px; }
   body.sharing .tile.bot { grid-column:auto; }
-  body.sharing #stage .bubble, body.sharing #stage .hand-tag { display:none; }
+  body.sharing #stage .hand-tag { display:none; }
   body.sharing #share { display:flex; flex-direction:column; }
   .share-bar { background:var(--green); color:#000; font-weight:700; padding:6px 12px; border-radius:8px 8px 0 0; }
   .sheet { flex:1; background:#fff; color:#222; display:grid; grid-template-columns:40px repeat(6, 1fr); grid-auto-rows:minmax(24px, 1fr); font:12px monospace; border-radius:0 0 8px 8px; overflow:hidden; position:relative; }
@@ -153,7 +150,7 @@ function addTile(id) {
   const p = people[id], t = document.createElement('div');
   t.className = `tile ${id}`;
   t.innerHTML = `<div class="head ${p.face}" style="background:${p.color}"><i class="eye l"></i><i class="eye r"></i><i class="mouth"></i></div>
-    <div class="bubble"></div><span class="name">${p.name}</span><span class="tag muted-tag">🔇 Muted by host</span><span class="tag hand-tag">✋ Hand raised</span>`;
+    <span class="name">${p.name}</span><span class="tag muted-tag">🔇 Muted by host</span><span class="tag hand-tag">✋ Hand raised</span>`;
   stage.append(t); tiles[id] = t;
 }
 ['you', 'gary', 'chad', 'tina'].forEach(addTile);
@@ -182,11 +179,11 @@ function preload() { for (const who in L) for (const g in L[who]) L[who][g].forE
 
 // Say line i of group g. Resolves when the line is done (or cut off).
 function say(id, g, i = rand(L[id][g].length), { volume = 1 } = {}) {
-  const t = tiles[id], b = t.querySelector('.bubble'), text = L[id][g][i], a = clip(`${id}-${g}-${i}`);
-  let est = 1200 + text.length * 55;
-  b.textContent = text; b.classList.add('show'); t.classList.add('speaking');
+  const t = tiles[id], a = clip(`${id}-${g}-${i}`);
+  let est = 1200 + L[id][g][i].length * 55;
+  t.classList.add('speaking');
   return new Promise(done => {
-    const finish = () => { clearTimeout(t._h); b.classList.remove('show'); t.classList.remove('speaking'); t._stop = null; done(); };
+    const finish = () => { clearTimeout(t._h); t.classList.remove('speaking'); t._stop = null; done(); };
     t._stop = () => { if (a) a.pause(); finish(); };
     if (ctx && a && a.readyState >= 2) {
       a.currentTime = 0; a.volume = volume; a.play().catch(() => {});
@@ -209,16 +206,14 @@ async function chatter(id, delay, gap = 1500) {
 // You try to talk. You get cut off. Every time.
 let cuts = 0, busy = false, hand = false;
 async function youSay(g) {
-  const you = tiles.you, b = you.querySelector('.bubble'), i = rand(L.you[g].length), text = L.you[g][i], a = clip(`you-${g}-${i}`);
-  you.classList.remove('cut'); you.classList.add('speaking'); b.classList.add('show'); b.textContent = '';
-  if (a && a.readyState >= 2) { a.currentTime = 0; a.play().catch(() => {}); }
-  for (const ch of text) { b.textContent += ch; await wait(60); }
-  if (a) a.pause();
+  const you = tiles.you, i = rand(L.you[g].length), a = clip(`you-${g}-${i}`);
+  you.classList.remove('cut'); you.classList.add('speaking');
+  if (a && a.readyState >= 2) { a.currentTime = 0; a.play().catch(() => {}); await wait(a.duration * 1000 * 0.9); a.pause(); }
+  else await wait(1200);
   you.classList.remove('speaking');
 }
 function cutYou(by) {
   tiles.you.classList.add('cut'); $('cutYou').textContent = ++cuts;
-  setTimeout(() => tiles.you.querySelector('.bubble').classList.remove('show'), 1400);
   toast(cuts === 1 ? `🔇 ${people[by].name.split(' ')[0]} muted you` : pick(['🔇 Muted by host', '🔇 You are on mute', '🔇 You were muted for "background noise"', '🔇 Your connection is unstable (it is not)']));
 }
 $('talk').onclick = async () => {
