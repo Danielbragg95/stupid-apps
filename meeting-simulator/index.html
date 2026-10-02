@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meeting Simulator</title>
+<meta name="description" content="Join a 1:1. Get talked over. Decide nothing.">
+<style>
+  :root { --bg:#1b1d22; --tile:#2a2d35; --text:#eee; --muted:#9aa0aa; --red:#e5484d; --green:#3fb950; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.4 system-ui, sans-serif; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+  header { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:#14161a; gap:12px; flex-wrap:wrap; }
+  header b { font-size:16px; }
+  .stats { color:var(--muted); font-size:13px; display:flex; gap:14px; flex-wrap:wrap; }
+  .stats span b { color:var(--text); }
+  #stage { flex:1; display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; padding:10px; min-height:0; }
+  .tile { position:relative; background:var(--tile); border-radius:12px; display:flex; align-items:center; justify-content:center; border:3px solid transparent; transition:border-color .15s; min-height:0; overflow:hidden; }
+  .tile.speaking { border-color:var(--green); }
+  .tile.cut { border-color:var(--red); animation:shake .3s; }
+  .name { position:absolute; left:10px; bottom:8px; background:#0009; padding:2px 8px; border-radius:6px; font-size:13px; }
+  .bubble { position:absolute; top:10px; left:10px; right:10px; background:#fff; color:#111; padding:8px 12px; border-radius:12px; font-weight:600; font-size:clamp(13px, 2vw, 18px); opacity:0; transform:translateY(-6px); transition:.15s; }
+  .bubble.show { opacity:1; transform:none; }
+  .tile.you .bubble { background:#ffe08a; }
+  .muted-tag { position:absolute; right:10px; bottom:8px; background:var(--red); padding:2px 8px; border-radius:6px; font-size:12px; display:none; }
+  .tile.cut .muted-tag { display:block; }
+
+  /* CSS-drawn heads */
+  .head { width:min(32%, 140px); aspect-ratio:1; border-radius:50%; position:relative; }
+  .eye { position:absolute; top:38%; width:10%; aspect-ratio:1; background:#111; border-radius:50%; }
+  .eye.l { left:30%; } .eye.r { right:30%; }
+  .mouth { position:absolute; left:50%; top:66%; transform:translateX(-50%); background:#111; }
+  .flat .mouth { width:36%; height:4%; border-radius:2px; }
+  .grin .mouth { width:46%; height:18%; border-radius:0 0 999px 999px; }
+  .nod  .mouth { width:24%; height:10%; border-radius:999px; }
+  .worried .mouth { width:26%; height:8%; border:4px solid #111; border-bottom:0; background:none; border-radius:999px 999px 0 0; }
+  .worried .eye { height:6%; top:40%; }
+  .speaking .mouth { animation:talk .18s infinite alternate; }
+  .speaking .flat .mouth { animation:talkflat .25s infinite alternate; }
+  .speaking.chad .head, .speaking.tina .head { animation:bob .5s infinite alternate; }
+  @keyframes talk { to { transform:translateX(-50%) scaleY(.3); } }
+  @keyframes talkflat { to { transform:translateX(-50%) scaleY(1.6); } }
+  @keyframes bob { to { transform:translateY(-4px) rotate(2deg); } }
+  @keyframes shake { 25% { transform:translateX(-6px); } 75% { transform:translateX(6px); } }
+
+  /* Screen share */
+  #share { display:none; flex:1; padding:10px; min-height:0; }
+  body.sharing #stage { grid-template-columns:repeat(4, 1fr); flex:0 0 110px; }
+  body.sharing #stage .head { width:50px; }
+  body.sharing #stage .bubble { display:none; }
+  body.sharing #share { display:flex; flex-direction:column; }
+  .share-bar { background:var(--green); color:#000; font-weight:700; padding:6px 12px; border-radius:8px 8px 0 0; }
+  .sheet { flex:1; background:#fff; color:#222; display:grid; grid-template-columns:40px repeat(6, 1fr); grid-auto-rows:minmax(24px, 1fr); font:12px monospace; border-radius:0 0 8px 8px; overflow:hidden; position:relative; }
+  .sheet div { border:1px solid #ddd; padding:2px 4px; overflow:hidden; white-space:nowrap; }
+  .sheet .h { background:#eef1f5; font-weight:700; text-align:center; }
+  .cat { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:min(30vh, 220px); pointer-events:none; }
+
+  footer { display:flex; justify-content:center; gap:10px; padding:12px; background:#14161a; flex-wrap:wrap; }
+  button { font:inherit; font-weight:700; border:0; border-radius:999px; padding:12px 22px; cursor:pointer; color:#fff; background:#3a3f4a; }
+  #talk { background:var(--green); color:#000; font-size:17px; animation:pulse 1.2s infinite; }
+  #talk:disabled { background:#555; color:#999; animation:none; cursor:not-allowed; }
+  #leave { background:var(--red); }
+  @keyframes pulse { 50% { box-shadow:0 0 0 8px #3fb95033; } }
+  #toast { position:fixed; left:50%; top:60px; transform:translateX(-50%); background:#000d; padding:10px 18px; border-radius:10px; font-weight:700; opacity:0; transition:.2s; pointer-events:none; text-align:center; z-index:5; }
+  #toast.show { opacity:1; }
+  @media (max-width:600px) { #stage { grid-template-columns:1fr 1fr; } body.sharing #stage { flex-basis:80px; } button { padding:10px 16px; } }
+</style>
+</head>
+<body>
+<header>
+  <b>📅 Your 1:1 with Gary <span style="color:var(--muted);font-weight:400">· 4 participants</span></b>
+  <div class="stats">
+    <span>⏱ <b id="clock">00:00</b></span>
+    <span>You got interrupted: <b id="cutYou">0</b></span>
+    <span>Anyone else interrupted: <b>0</b></span>
+    <span>Decisions made: <b>0</b></span>
+  </div>
+</header>
+
+<main id="stage"></main>
+<section id="share">
+  <div class="share-bar">🖥 Chad is sharing his screen · in your 1:1</div>
+  <div class="sheet" id="sheet"><div class="cat">🐈</div></div>
+</section>
+
+<footer>
+  <button id="talk">🎤 Unmute and speak</button>
+  <button id="leave">Leave meeting</button>
+</footer>
+<div id="toast"></div>
+
+<script>
+const people = {
+  you:  { name: 'You',   color: '#7dd3fc', face: 'worried', pitch: 0 },
+  gary: { name: 'Gary (host)', color: '#94a3b8', face: 'flat', pitch: 90,  lines: [
+    'Item one. Review of item one.', 'Moving on to item two. Which is also item one.',
+    'Per my last email.', 'Let us circle back to the agenda.', 'I will now read the agenda. Again.' ] },
+  chad: { name: 'Chad',  color: '#fb923c', face: 'grin', pitch: 150, lines: [
+    'Quick question, super quick, so basically going back to Q3, which ties into Q2, which honestly ties into Q1...',
+    'Just to piggyback on that, and on what I said before that...',
+    'Can everyone see my screen? Can you see it? How about now?', 'Sorry, go ahead. Actually one more thing.' ] },
+  tina: { name: 'Tina',  color: '#c084fc', face: 'nod',  pitch: 230, lines: [
+    'Yeah, no, totally.', 'Totally. Yeah. No.', 'No, yeah, 100%.', 'Yes. Agreed. With everyone. Always.' ] },
+};
+const youLines = ['So I just wanted to', 'Sorry, can I just', 'Quick thing, I think we sh', 'Hi, hello, I', 'Sor', 'I'];
+const cutLines = ['Sorry, real quick:', 'Oh, before you go on:', 'Let me just jump in:', 'Hold that thought:'];
+
+const stage = document.getElementById('stage'), tiles = {};
+for (const [id, p] of Object.entries(people)) {
+  const t = document.createElement('div');
+  t.className = `tile ${id}${id === 'you' ? ' you' : ''}`;
+  t.innerHTML = `<div class="head ${p.face}" style="background:${p.color}"><i class="eye l"></i><i class="eye r"></i><i class="mouth"></i></div>
+    <div class="bubble"></div><span class="name">${p.name}</span><span class="muted-tag">🔇 Muted by host</span>`;
+  stage.append(t); tiles[id] = t;
+}
+
+const $ = id => document.getElementById(id), pick = a => a[Math.floor(Math.random() * a.length)];
+const wait = ms => new Promise(r => setTimeout(r, ms));
+function toast(msg, ms = 2200) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), ms); }
+
+// Charlie Brown style "wah wah" murmur. Starts after the first click (browser audio rules).
+let ctx;
+function murmur(pitch, ms) {
+  if (!ctx || !pitch) return;
+  const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t0 = ctx.currentTime;
+  o.type = 'sawtooth'; f.type = 'lowpass'; f.frequency.value = 900;
+  o.connect(f).connect(g).connect(ctx.destination); g.gain.value = 0;
+  for (let t = 0; t < ms / 1000; t += 0.16) {
+    o.frequency.setValueAtTime(pitch * (0.85 + Math.random() * 0.4), t0 + t);
+    g.gain.setValueAtTime(0.07, t0 + t); g.gain.linearRampToValueAtTime(0.01, t0 + t + 0.14);
+  }
+  o.start(); o.stop(t0 + ms / 1000);
+}
+
+function say(id, text, ms = 1400 + text.length * 45) {
+  const t = tiles[id], b = t.querySelector('.bubble');
+  b.textContent = text; b.classList.add('show'); t.classList.add('speaking');
+  murmur(people[id].pitch, ms);
+  clearTimeout(t._h);
+  t._h = setTimeout(() => { b.classList.remove('show'); t.classList.remove('speaking'); }, ms);
+  return wait(ms);
+}
+
+// The others talk over each other forever. Nobody stops them.
+async function chatter(id, delay) {
+  await wait(delay);
+  while (true) { await say(id, pick(people[id].lines)); await wait(300 + Math.random() * 1500); }
+}
+chatter('chad', 0); chatter('gary', 600); chatter('tina', 1500);
+
+// You try to talk. You get cut off. Every time.
+let cuts = 0, busy = false;
+$('talk').onclick = async () => {
+  ctx ??= new (window.AudioContext || window.webkitAudioContext)();
+  if (busy) return; busy = true; $('talk').disabled = true;
+  const you = tiles.you, b = you.querySelector('.bubble'), line = pick(youLines);
+  you.classList.remove('cut'); you.classList.add('speaking'); b.classList.add('show'); b.textContent = '';
+  for (const ch of line) { b.textContent += ch; await wait(55); }
+  b.textContent += '—';
+  const who = pick(['gary', 'chad', 'tina']);
+  say(who, `${pick(cutLines)} ${pick(people[who].lines)}`);
+  you.classList.remove('speaking'); you.classList.add('cut');
+  $('cutYou').textContent = ++cuts;
+  toast(cuts === 1 ? `🔇 ${people[who].name.split(' ')[0]} muted you` : pick(['🔇 Muted by host', '🔇 You are on mute', '🔇 You were muted for "background noise"']));
+  await wait(1100); b.classList.remove('show');
+  await wait(1200); $('talk').disabled = false; busy = false;
+};
+
+// Screen share gag: Chad shares a spreadsheet. With a cat. In your 1:1.
+const sheet = $('sheet'), cols = ['', 'A', 'B', 'C', 'D', 'E', 'F'];
+cols.forEach(c => sheet.insertAdjacentHTML('beforeend', `<div class="h">${c}</div>`));
+for (let r = 1; r <= 14; r++) cols.forEach((c, i) => sheet.insertAdjacentHTML('beforeend',
+  `<div${i ? '' : ' class="h"'}>${i ? (r === 1 ? ['Q3 synergy', 'Action items', 'Owner', 'Due', 'Status', 'Notes'][i - 1] : pick(['TBD', 'circle back', '#REF!', 'Gary', '???', '', 'see email'])) : r}</div>`));
+async function shareLoop() {
+  while (true) {
+    await wait(12000);
+    document.body.classList.add('sharing'); toast('🖥 Chad started sharing his screen');
+    await wait(9000);
+    document.body.classList.remove('sharing'); toast('Chad stopped sharing. Nobody knows why he started.');
+  }
+}
+shareLoop();
+
+// Leaving is not an option.
+$('leave').onclick = () => toast(pick(['Gary added 30 more minutes ⏰', 'Are you sure? Gary has 14 more agenda items.', 'Leaving is not on the agenda.', 'Chad has one more quick question.']), 2600);
+
+const start = Date.now();
+setInterval(() => { const s = Math.floor((Date.now() - start) / 1000) + 2580; // starts 43 minutes in
+  $('clock').textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; }, 1000);
+</script>
+</body>
+</html>

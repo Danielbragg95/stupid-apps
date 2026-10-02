@@ -1,0 +1,7 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/meeting-simulator", "destination": "/meeting-simulator/index.html" }
+  ]
+}
