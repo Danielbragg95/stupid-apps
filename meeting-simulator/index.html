@@ -6,7 +6,7 @@
 <title>Meeting Simulator</title>
 <meta name="description" content="Join a 1:1. Get talked over. Decide nothing.">
 <style>
-  :root { --bg:#1b1d22; --tile:#2a2d35; --text:#eee; --muted:#9aa0aa; --red:#e5484d; --green:#3fb950; }
+  :root { --bg:#1b1d22; --tile:#2a2d35; --text:#eee; --muted:#9aa0aa; --red:#e5484d; --green:#3fb950; --n:4; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:15px/1.4 system-ui, sans-serif; height:100vh; height:100dvh; display:flex; flex-direction:column; overflow:hidden; }
   header { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:#14161a; gap:12px; flex-wrap:wrap; }
@@ -61,10 +61,12 @@
   @keyframes blink { 50% { opacity:.2; } }
 
   /* Screen share */
-  #share { display:none; flex:1; padding:10px; min-height:0; }
-  body.sharing #stage { grid-template-columns:repeat(5, 1fr); flex:0 0 110px; }
-  body.sharing #stage .head { width:50px; }
-  body.sharing .tile.bot { grid-column:auto; }
+  #room { flex:1; display:flex; min-height:0; container-type:size; }
+  #share { display:none; flex:1; padding:10px; min-height:0; min-width:0; order:-1; }
+  /* While someone shares: the screen on the left, square avatars stacked on the right. */
+  body.sharing #stage { flex:none; display:flex; flex-direction:column; padding:10px 10px 10px 0;
+    width:calc((100cqh - 20px - (var(--n) - 1) * 10px) / var(--n) + 10px); }
+  body.sharing #stage .tile { flex:none; width:100%; aspect-ratio:1; }
   body.sharing #stage .hand-tag { display:none; }
   body.sharing #share { display:flex; flex-direction:column; }
   .share-bar { background:var(--green); color:#000; font-weight:700; padding:6px 12px; border-radius:8px 8px 0 0; }
@@ -105,7 +107,7 @@
   .invite { background:#fff; color:#111; border-radius:10px; padding:12px; margin-bottom:18px; text-align:left; }
   .invite button { font-size:14px; padding:8px 16px; margin-right:6px; }
   #end { display:none; }
-  @media (max-width:600px) { #stage, body.five #stage { grid-template-columns:1fr 1fr; } body.sharing #stage { flex-basis:80px; } button { padding:10px 16px; } }
+  @media (max-width:600px) { #stage, body.five #stage { grid-template-columns:1fr 1fr; } button { padding:10px 16px; } }
 </style>
 </head>
 <body>
@@ -119,6 +121,7 @@
   </div>
 </header>
 
+<div id="room">
 <main id="stage"></main>
 <section id="share">
   <div class="share-bar" id="shareBar"></div>
@@ -130,6 +133,7 @@
       <text x="200" y="185" font-size="12" fill="#888">time (approx.)</text><text x="300" y="30" font-size="14" fill="#e5484d">🏒 we are here?</text></svg>
     <img src="/meeting-simulator/bg/tina.jpg" alt="" class="beachpeek"></div>
 </section>
+</div>
 
 <footer>
   <button id="talk">🎤 Unmute and speak</button>
@@ -308,7 +312,7 @@ async function meeting() {
   await say('chad', 'shareEnd');
   await wait(4000); await muteBit('tina');
   await wait(3000);
-  addTile('bot'); document.body.classList.add('five'); $('count').textContent = 5; toast("🤖 Gary's AI Notetaker joined your 1:1");
+  addTile('bot'); document.body.classList.add('five'); document.body.style.setProperty('--n', 5); $('count').textContent = 5; toast("🤖 Gary's AI Notetaker joined your 1:1");
   await say('bot', 'join'); chatter('bot', 2000, 5000);
   await wait(6000); await presentation('gary', 'ppt', 'share', 'chad', ['bot', 'tina']);
   await wait(5000); await muteBit('chad');
