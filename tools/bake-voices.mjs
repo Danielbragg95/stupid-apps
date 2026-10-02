@@ -1,20 +1,21 @@
 // Pre-bake ElevenLabs clips for an app's lines.js.
 // Usage: node tools/bake-voices.mjs meeting-simulator          (dry run: counts characters, spends nothing)
 //        node tools/bake-voices.mjs meeting-simulator --go     (generates missing clips; --force redoes all)
-// Key comes from ELEVENLABS_API_KEY or .env.local. It is never printed.
+// Key comes from ELEVENLABS_API_KEY, or the ELEVENLABS_API_KEY line of .env.local (or --env=<file>). Only that line is used; it is never printed.
 import fs from 'node:fs';
 import path from 'node:path';
 
 const [app, ...flags] = process.argv.slice(2);
 if (!app) throw new Error('Usage: node tools/bake-voices.mjs <app-folder> [--go] [--force]');
 const go = flags.includes('--go'), force = flags.includes('--force');
+const envFile = flags.find(f => f.startsWith('--env='))?.slice(6) ?? '.env.local';
 
 // Premade ElevenLabs voices. Stability: high = flat, low = expressive.
 const VOICES = {
   gary: { id: 'nPczCjzI2devNBz1zQrb', stability: 1.0,  style: 0 },   // Brian: the monotone agenda reader
   chad: { id: 'TX3LPaxmHKxFdv7VOQHJ', stability: 0.25, style: 0.6 }, // Liam: "quick question"
   tina: { id: 'cgSgspJ2msm6clMCkdW9', stability: 0.35, style: 0.5 }, // Jessica: yeah, no, totally
-  bot:  { id: 'pqHfZKP75CVOlQylNhV4', stability: 1.0,  style: 0 },   // Bill: the AI notetaker
+  bot:  { id: 'SAz9YHcvj6GT2YYXdXww', stability: 1.0,  style: 0 },   // River: the AI notetaker
   you:  { id: 'iP95p4xoKVk53GoZ742B', stability: 0.5,  style: 0.3 }, // Chris: you, trying
 };
 const MODEL = 'eleven_multilingual_v2';
@@ -35,9 +36,9 @@ console.log(`${jobs.length} clips to bake, ${chars} characters (about ${chars} c
 if (!go) { console.log('Dry run. Add --go to generate.'); process.exit(0); }
 
 let key = process.env.ELEVENLABS_API_KEY;
-if (!key && fs.existsSync('.env.local'))
-  key = fs.readFileSync('.env.local', 'utf8').replace(/^﻿/, '').match(/^ELEVENLABS_API_KEY=(.+)$/m)?.[1].trim();
-if (!key) throw new Error('ELEVENLABS_API_KEY is not set (env or .env.local).');
+if (!key && fs.existsSync(envFile))
+  key = fs.readFileSync(envFile, 'utf8').replace(/^﻿/, '').match(/^ELEVENLABS_API_KEY=(.+)$/m)?.[1].trim();
+if (!key) throw new Error('ELEVENLABS_API_KEY is not set (env or ${envFile}).');
 
 for (const { who, text, file } of jobs) {
   const v = VOICES[who];
