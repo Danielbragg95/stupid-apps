@@ -58,6 +58,17 @@
   body.sharing #stage .hand-tag { display:none; }
   body.sharing #share { display:flex; flex-direction:column; }
   .share-bar { background:var(--green); color:#000; font-weight:700; padding:6px 12px; border-radius:8px 8px 0 0; }
+  #share .screen:not(.on) { display:none; }
+  .ppt.on, .chart.on { display:flex; }
+  .ppt, .chart { flex:1; flex-direction:column; background:#fff; color:#222; border-radius:0 0 8px 8px; padding:24px; position:relative; overflow:hidden; min-height:0; }
+  .ppt { background:linear-gradient(135deg, #fff 70%, #c43e1c 70%); }
+  .ppt h2 { font:900 clamp(24px, 6vw, 56px) Georgia, serif; margin:0 0 12px; color:#c43e1c; }
+  .ppt ul { font-size:clamp(16px, 3vw, 28px); margin:0; }
+  .ppt small { position:absolute; right:16px; bottom:10px; color:#fff; font-weight:700; }
+  .pie { position:absolute; right:12%; top:30%; width:min(28vh, 30%); aspect-ratio:1; border-radius:50%; background:conic-gradient(#c43e1c 0 25%, #f5b041 0 50%, #3fb950 0 75%, #7dd3fc 0); }
+  .chart h2 { margin:0 0 8px; }
+  .chart svg { flex:1; width:100%; min-height:0; }
+  .beachpeek { position:absolute; right:10px; bottom:10px; width:28%; border-radius:6px; opacity:.9; }
   .sheet { flex:1; background:#fff; color:#222; display:grid; grid-template-columns:40px repeat(6, 1fr); grid-auto-rows:minmax(24px, 1fr); font:12px monospace; border-radius:0 0 8px 8px; overflow:hidden; position:relative; }
   .sheet div { border:1px solid #ddd; padding:2px 4px; overflow:hidden; white-space:nowrap; }
   .sheet .h { background:#eef1f5; font-weight:700; text-align:center; }
@@ -100,8 +111,14 @@
 
 <main id="stage"></main>
 <section id="share">
-  <div class="share-bar">🖥 Chad is sharing his screen · in your 1:1</div>
-  <div class="sheet" id="sheet"><div class="cat">🐈</div></div>
+  <div class="share-bar" id="shareBar"></div>
+  <div class="screen sheet" id="sheet"><div class="cat">🐈</div></div>
+  <div class="screen ppt" id="ppt"><h2>Q4 FORECAST</h2><ul><li>Up?</li><li>Down?</li><li>Let's circle back</li></ul><div class="pie"></div><small id="slideNo">Slide 1 of 94</small></div>
+  <div class="screen chart" id="chart"><h2>Forecast (very real) 📈</h2>
+    <svg viewBox="0 0 400 200" preserveAspectRatio="none"><path d="M10 190 H390 M10 10 V190" stroke="#999" fill="none"/>
+      <polyline points="10,170 80,172 150,168 220,175 290,165 320,120 345,40 360,-200" stroke="#e5484d" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <text x="200" y="185" font-size="12" fill="#888">time (approx.)</text><text x="300" y="30" font-size="14" fill="#e5484d">🏒 we are here?</text></svg>
+    <img src="/meeting-simulator/bg/tina.jpg" alt="" class="beachpeek"></div>
 </section>
 
 <footer>
@@ -135,11 +152,11 @@
 <script>
 const L = window.LINES;
 const people = {
-  you:  { name: 'You',         color: '#7dd3fc', face: 'worried' },
-  gary: { name: 'Gary (host)', color: '#94a3b8', face: 'flat',  pitch: 90 },
-  chad: { name: 'Chad',        color: '#fb923c', face: 'grin',  pitch: 150 },
-  tina: { name: 'Tina',        color: '#c084fc', face: 'nod',   pitch: 230 },
-  bot:  { name: "Gary's AI Notetaker", color: '#5eead4', face: 'robot', pitch: 70 },
+  you:  { name: 'You',         color: '#7dd3fc', face: 'worried', bg: 'you' },
+  gary: { name: 'Gary (host)', color: '#94a3b8', face: 'flat',    bg: 'gary' },
+  chad: { name: 'Chad',        color: '#fb923c', face: 'grin',    bg: 'chad' },
+  tina: { name: 'Tina',        color: '#c084fc', face: 'nod',     bg: 'tina' },
+  bot:  { name: "Gary's AI Notetaker", color: '#5eead4', face: 'robot' },
 };
 const $ = id => document.getElementById(id), stage = $('stage'), tiles = {};
 const rand = n => Math.floor(Math.random() * n), pick = a => a[rand(a.length)];
@@ -149,95 +166,111 @@ function toast(msg, ms = 2400) { const t = $('toast'); t.textContent = msg; t.cl
 function addTile(id) {
   const p = people[id], t = document.createElement('div');
   t.className = `tile ${id}`;
+  if (p.bg) t.style.background = `#2a2d35 url(/meeting-simulator/bg/${p.bg}.jpg) center / cover`; // virtual backgrounds
   t.innerHTML = `<div class="head ${p.face}" style="background:${p.color}"><i class="eye l"></i><i class="eye r"></i><i class="mouth"></i></div>
     <span class="name">${p.name}</span><span class="tag muted-tag">🔇 Muted by host</span><span class="tag hand-tag">✋ Hand raised</span>`;
   stage.append(t); tiles[id] = t;
 }
 ['you', 'gary', 'chad', 'tina'].forEach(addTile);
 
-// Audio: pre-baked ElevenLabs clips in audio/. Missing clips fall back to a "wah wah" murmur.
-let ctx, clips = {};
-function murmur(pitch, ms) {
-  if (!ctx || !pitch) return;
-  const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(), t0 = ctx.currentTime;
-  o.type = 'sawtooth'; f.type = 'lowpass'; f.frequency.value = 900;
-  o.connect(f).connect(g).connect(ctx.destination); g.gain.value = 0;
-  for (let t = 0; t < ms / 1000; t += 0.16) {
-    o.frequency.setValueAtTime(pitch * (0.85 + Math.random() * 0.4), t0 + t);
-    g.gain.setValueAtTime(0.07, t0 + t); g.gain.linearRampToValueAtTime(0.01, t0 + t + 0.14);
-  }
-  o.start(); o.stop(t0 + ms / 1000);
+// Audio: pre-baked ElevenLabs clips, decoded into Web Audio buffers before you join.
+let ctx; const buffers = {};
+function preload() {
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const jobs = [];
+  for (const who in L) for (const g in L[who]) L[who][g].forEach((_, i) => {
+    const key = `${who}-${g}-${i}`;
+    jobs.push(fetch(`/meeting-simulator/audio/${key}.mp3`).then(r => r.arrayBuffer())
+      .then(b => new Promise((ok, no) => ctx.decodeAudioData(b, ok, no))).then(buf => { buffers[key] = buf; }).catch(() => {}));
+  });
+  return Promise.race([Promise.all(jobs), wait(10000)]);
 }
-function clip(key) {
-  if (!(key in clips)) {
-    const a = new Audio(`/meeting-simulator/audio/${key}.mp3`);
-    a.preload = 'auto'; a.onerror = () => { clips[key] = null; }; clips[key] = a;
-  }
-  return clips[key];
+function play(key, volume = 1) {
+  const buf = buffers[key]; if (!buf) return null;
+  const src = ctx.createBufferSource(), g = ctx.createGain();
+  src.buffer = buf; g.gain.value = volume; src.connect(g).connect(ctx.destination); src.start();
+  return src;
 }
-function preload() { for (const who in L) for (const g in L[who]) L[who][g].forEach((_, i) => clip(`${who}-${g}-${i}`)); }
 
 // Say line i of group g. Resolves when the line is done (or cut off).
-function say(id, g, i = rand(L[id][g].length), { volume = 1 } = {}) {
-  const t = tiles[id], a = clip(`${id}-${g}-${i}`);
-  let est = 1200 + L[id][g][i].length * 55;
-  t.classList.add('speaking');
+function say(id, g, i = rand(L[id][g].length), volume = 1) {
+  const t = tiles[id], src = play(`${id}-${g}-${i}`, volume), buf = buffers[`${id}-${g}-${i}`];
+  t._stop?.(); t.classList.add('speaking');
   return new Promise(done => {
     const finish = () => { clearTimeout(t._h); t.classList.remove('speaking'); t._stop = null; done(); };
-    t._stop = () => { if (a) a.pause(); finish(); };
-    if (ctx && a && a.readyState >= 2) {
-      a.currentTime = 0; a.volume = volume; a.play().catch(() => {});
-      a.onended = finish; est = a.duration * 1000 + 500;
-    } else murmur(people[id].pitch, est);
-    t._h = setTimeout(finish, est);
+    t._stop = () => { try { src?.stop(); } catch {} finish(); };
+    t._h = setTimeout(finish, buf ? buf.duration * 1000 + 250 : 1200 + L[id][g][i].length * 55);
   });
 }
+const lineCount = (id, g) => L[id][g].length;
 
 // The others talk over each other forever. Nobody ever cuts THEM off.
-let quiet = false, ended = false, queue = 0;
+let quiet = false, ended = false, queue = 0, hand = false;
 async function chatter(id, delay, gap = 1500) {
   await wait(delay);
   while (!ended) {
-    if (!quiet) { await say(id, 'chatter', undefined, { volume: 0.55 }); if (hand) $('hand').textContent = `✋ You're #${++queue} in queue`; }
+    if (!quiet) { await say(id, 'chatter', undefined, 0.55); if (hand) $('hand').textContent = `✋ You're #${++queue} in queue`; }
     await wait(300 + Math.random() * gap);
   }
 }
+function hush() { quiet = true; for (const id in tiles) if (id !== 'you') tiles[id]._stop?.(); }
 
 // You try to talk. You get cut off. Every time.
-let cuts = 0, busy = false, hand = false;
+let cuts = 0, busy = false;
 async function youSay(g) {
-  const you = tiles.you, i = rand(L.you[g].length), a = clip(`you-${g}-${i}`);
+  const you = tiles.you, i = rand(L.you[g].length), buf = buffers[`you-${g}-${i}`];
   you.classList.remove('cut'); you.classList.add('speaking');
-  if (a && a.readyState >= 2) { a.currentTime = 0; a.play().catch(() => {}); await wait(a.duration * 1000 * 0.9); a.pause(); }
-  else await wait(1200);
+  const src = play(`you-${g}-${i}`);
+  await wait(buf ? buf.duration * 900 : 1200);
+  try { src?.stop(); } catch {}
   you.classList.remove('speaking');
 }
-function cutYou(by) {
+function cutYou(by, mute) {
   tiles.you.classList.add('cut'); $('cutYou').textContent = ++cuts;
-  toast(cuts === 1 ? `🔇 ${people[by].name.split(' ')[0]} muted you` : pick(['🔇 Muted by host', '🔇 You are on mute', '🔇 You were muted for "background noise"', '🔇 Your connection is unstable (it is not)']));
+  toast(mute ? '🎤 You are not on mute. You were never on mute.' : cuts === 1 ? `🔇 ${people[by].name.split(' ')[0]} muted you`
+    : pick(['🔇 Muted by host', '🔇 You were muted for "background noise"', '🔇 Your connection is unstable (it is not)', '🔥 Your background is on fire. Nobody mentions it.']));
 }
 $('talk').onclick = async () => {
   if (busy || ended) return; busy = true; $('talk').disabled = true;
   if (document.body.classList.contains('floor')) return yourBigMoment();
   await youSay('cut');
-  const who = pick(['gary', 'chad', 'tina', ...(tiles.bot ? ['bot'] : [])]);
-  say(who, 'cut'); cutYou(who);
+  const who = pick(['gary', 'chad', 'tina', ...(tiles.bot ? ['bot'] : [])]), mute = Math.random() < 0.35;
+  say(who, mute ? 'mute' : 'cut'); cutYou(who, mute);
   await wait(2300); $('talk').disabled = false; busy = false;
 };
 $('hand').onclick = () => { if (hand) return toast('Your hand is already up. It has been up since 2019.');
   hand = true; queue = 3; document.body.classList.add('hand'); $('hand').textContent = `✋ You're #${queue} in queue`; };
 $('leave').onclick = () => toast(pick(['Gary added 30 more minutes ⏰', 'Are you sure? Gary has 14 more agenda items.', 'Leaving is not on the agenda.', 'Chad has one more quick question.']), 2600);
 
-// Screen share gag: Chad shares a spreadsheet. With a cat. In your 1:1.
+// Shared screens: Chad's spreadsheet (with cat), Gary's 94-slide deck, Tina's hockey stick.
 const sheet = $('sheet'), cols = ['', 'A', 'B', 'C', 'D', 'E', 'F'];
 cols.forEach(c => sheet.insertAdjacentHTML('beforeend', `<div class="h">${c}</div>`));
 for (let r = 1; r <= 14; r++) cols.forEach((c, i) => sheet.insertAdjacentHTML('beforeend',
-  `<div${i ? '' : ' class="h"'}>${i ? (r === 1 ? ['Q3 synergy', 'Action items', 'Owner', 'Due', 'Status', 'Notes'][i - 1] : pick(['TBD', 'circle back', '#REF!', 'Gary', '???', '', 'see email'])) : r}</div>`));
+  `<div${i ? '' : ' class="h"'}>${i ? (r === 1 ? ['Forecast', 'Revenue', 'Vibes', 'Owner', 'Status', 'Notes'][i - 1] : pick(['TBD', 'circle back', '#REF!', 'Gary', '???', '', 'see email', '$9,999,999', '📈'])) : r}</div>`));
+function share(who, screen) {
+  document.body.classList.toggle('sharing', !!who);
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === screen));
+  if (who) { $('shareBar').textContent = `🖥 ${people[who].name.split(' ')[0]} is sharing their screen · in your 1:1`; toast(`🖥 ${people[who].name.split(' ')[0]} started sharing`); }
+}
+// A share: sharer asks if we can see it, someone answers, then forecast talk. Some lines overlap on purpose.
+async function presentation(who, screen, askGroup, reactor, others) {
+  hush(); share(who, screen);
+  await say(who, askGroup); await say(reactor, 'see');
+  const order = [...Array(lineCount(who, 'forecast')).keys()].sort(() => Math.random() - 0.5).slice(0, 4);
+  for (const i of order) {
+    await say(who, 'forecast', i);
+    if (screen === 'ppt') $('slideNo').textContent = `Slide ${1 + rand(3)} of ${94 + rand(40)}`;
+    const o = pick(others); if (o === 'bot' && !tiles.bot) continue;
+    say(o, o === 'gary' || o === 'tina' || o === 'chad' ? 'chatter' : 'forecast', undefined, 0.8); await wait(1400);
+  }
+  share(null); toast(`${people[who].name.split(' ')[0]} stopped sharing. Nobody knows why they started.`); quiet = false;
+}
+async function muteBit(who) { say(who, 'mute'); tiles.you.classList.add('cut'); toast('🎤 You are not on mute.'); await wait(3000); tiles.you.classList.remove('cut'); }
 
 // The big moment: Gary finally gives you the floor.
 let floorTimer;
 async function giveFloor() {
-  quiet = true; for (const t of Object.values(tiles)) t._stop?.();
+  hush();
   await say('gary', 'yourTurn');
   document.body.classList.add('floor'); $('talk').textContent = '🎤 You have the floor!'; $('talk').disabled = false; busy = false;
   floorTimer = setTimeout(async () => {   // you took too long
@@ -256,14 +289,18 @@ async function yourBigMoment() {
 // The meeting, scripted.
 async function meeting() {
   chatter('chad', 0); chatter('gary', 700); chatter('tina', 1600);
-  await wait(16000);
-  document.body.classList.add('sharing'); toast('🖥 Chad started sharing his screen');
-  await say('chad', 'share'); await wait(5000); await say('chad', 'shareEnd');
-  document.body.classList.remove('sharing'); toast('Chad stopped sharing. Nobody knows why he started.');
-  await wait(6000);
+  await wait(9000); await muteBit('gary');
+  await wait(4000); await presentation('chad', 'sheet', 'share', 'tina', ['gary', 'tina']);
+  await say('chad', 'shareEnd');
+  await wait(4000); await muteBit('tina');
+  await wait(3000);
   addTile('bot'); document.body.classList.add('five'); $('count').textContent = 5; toast("🤖 Gary's AI Notetaker joined your 1:1");
   await say('bot', 'join'); chatter('bot', 2000, 5000);
-  await wait(14000);
+  await wait(6000); await presentation('gary', 'ppt', 'share', 'chad', ['bot', 'tina']);
+  await wait(5000); await muteBit('chad');
+  await wait(5000); await presentation('tina', 'chart', 'share', 'gary', ['bot', 'chad']);
+  await wait(3000); await muteBit('bot');
+  await wait(5000);
   giveFloor();
 }
 
@@ -271,8 +308,9 @@ const start = Date.now();
 setInterval(() => { if (ended) return; const s = Math.floor((Date.now() - start) / 1000) + 2580;
   $('clock').textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; }, 1000);
 
-$('join').onclick = () => {
-  ctx = new (window.AudioContext || window.webkitAudioContext)(); preload();
+$('join').onclick = async () => {
+  $('join').disabled = true; $('join').textContent = 'Joining… (Gary is admitting you)';
+  await preload();
   $('lobby').remove(); meeting();
 };
 </script>
