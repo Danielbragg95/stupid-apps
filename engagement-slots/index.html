@@ -6,28 +6,26 @@
 <title>Engagement Slot Machine</title>
 <meta name="description" content="Pull the lever. Win a generic X post.">
 <style>
-  :root { --gold:#ffcf3f; --red:#d7263d; --x:#1d9bf0; --h:116px; }
+  :root { --gold:#ffcf3f; --red:#d7263d; --x:#1d9bf0; }
   * { box-sizing:border-box; }
   body { margin:0; min-height:100vh; min-height:100dvh; color:#fff; font:15px/1.4 system-ui, sans-serif; display:flex; flex-direction:column; align-items:center; padding:16px 16px 32px; gap:16px;
-    background:#120024 url(/engagement-slots/art/background.webp) center / cover fixed; background-image:url(/engagement-slots/art/background.webp), radial-gradient(circle at 50% 20%, #5b1a8f, #120024 70%); }
+    background:#120024 url(/engagement-slots/art/background.webp) center / cover fixed; }
   h1 { margin:4px 0 0; font-size:clamp(20px, 5vw, 30px); text-shadow:0 0 12px #ff3fd0; text-align:center; }
 
-  /* Cabinet (CSS stand-in until art/cabinet.webp lands) */
-  .machine { display:flex; align-items:center; gap:10px; width:100%; max-width:720px; }
-  .cabinet { flex:1; position:relative; border-radius:28px 28px 16px 16px; padding:18px 16px 22px;
-    background:linear-gradient(#ffd75e, #e0a10b 30%, #b3122a 31%, #7d0a1d); box-shadow:0 0 0 6px #3a0410, 0 0 40px #ff3fd099; }
-  .cabinet.art { background:url(/engagement-slots/art/cabinet.webp) center / 100% 100%; box-shadow:none; }
-  .marquee { text-align:center; font:900 clamp(18px, 5vw, 32px) Impact, system-ui, sans-serif; letter-spacing:2px; color:#fff; padding:8px; margin-bottom:14px;
-    background:#2a0060; border-radius:12px; border:4px dotted var(--gold); animation:bulbs .6s steps(2) infinite; text-shadow:0 0 10px #ff3fd0; }
-  @keyframes bulbs { 50% { border-color:#fff7c2; } }
-  .reels { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; background:#1a0010; padding:8px; border-radius:12px; position:relative; }
-  .reels::after { content:''; position:absolute; left:4px; right:4px; top:calc(8px + var(--h) * .3); height:var(--h); border:3px solid #ff3fd0; border-radius:8px; box-shadow:0 0 14px #ff3fd0; pointer-events:none; } /* payline */
-  .window { height:calc(var(--h) * 1.6); overflow:hidden; background:#fffdf3; border-radius:8px; position:relative;
-    -webkit-mask:linear-gradient(transparent, #000 22%, #000 78%, transparent); mask:linear-gradient(transparent, #000 22%, #000 78%, transparent); }
+  /* Cabinet art (art/cabinet.webp, cropped to 710:1110). Window and panel positions are measured from the image, in %. */
+  .machine { --cw:min(calc(100vw - 70px), 380px, 50dvh); display:flex; align-items:flex-start; justify-content:center; width:100%; }
+  .machine .lever { margin:max(calc(var(--cw) * .6125 - 196px), 0px) 0 0 -14px; } /* sits on the cabinet's side stub */
+  .cabinet { container-type:inline-size; position:relative; width:var(--cw); aspect-ratio:710 / 1110; background:url(/engagement-slots/art/cabinet.webp) center / contain no-repeat; filter:drop-shadow(0 0 30px #ff3fd088); }
+  .window { position:absolute; top:36.04%; width:17.89%; height:16.76%; overflow:hidden; border-radius:4px; background:#fff3f8; container-type:size; }
+  .window:nth-child(1) { left:16.62%; } .window:nth-child(2) { left:40.28%; } .window:nth-child(3) { left:64.08%; }
   .strip { will-change:transform; }
-  .item { height:var(--h); padding:8px; display:flex; flex-direction:column; justify-content:center; color:#14171a; font-weight:700; font-size:clamp(11px, 2.4vw, 15px); border-bottom:1px dashed #e4dccb; overflow:hidden; }
-  .item b { font:900 12px system-ui; color:var(--red); }
-  .lights { text-align:center; margin-top:12px; color:var(--gold); font-weight:800; font-size:13px; letter-spacing:1px; }
+  .item { height:100cqh; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1; }
+  .item span { font-size:30cqh; }
+  .item b { font:900 48cqh Impact, system-ui, sans-serif; color:#e0006b; text-shadow:0 2px 0 #ffcf3f; }
+  .panel { position:absolute; left:14.79%; top:70.54%; width:69.3%; height:13.42%; display:flex; align-items:center; justify-content:center; text-align:center;
+    color:#b0004e; font:900 4.5cqw/1.15 Impact, system-ui, sans-serif; letter-spacing:.5px; padding:0 4%; }
+  .panel.win { color:#fff; background:#e0006b; animation:flash .25s steps(2) infinite; }
+  @keyframes flash { 50% { background:#ffcf3f; color:#e0006b; } }
 
   /* Lever */
   .lever { width:46px; height:230px; position:relative; flex:none; cursor:grab; touch-action:none; user-select:none; }
@@ -41,7 +39,7 @@
   .card { width:100%; max-width:600px; background:#fff; color:#0f1419; border-radius:16px; padding:14px 16px; display:none; gap:12px; box-shadow:0 10px 30px #0008; }
   .card.show { display:flex; animation:pop .3s; }
   @keyframes pop { from { transform:scale(.9); opacity:0; } }
-  .avatar { width:48px; height:48px; border-radius:50%; flex:none; background:url(/engagement-slots/art/avatar.webp) center / cover, linear-gradient(135deg, #ffb347, #ff3fd0); display:flex; align-items:center; justify-content:center; font-size:26px; }
+  .avatar { width:48px; height:48px; border-radius:50%; flex:none; background:url(/engagement-slots/art/avatar.webp) center / cover; }
   .who { font-weight:800; display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
   .who span { color:#536471; font-weight:400; }
   .text { white-space:pre-line; margin:4px 0 10px; font-size:16px; }
@@ -57,27 +55,24 @@
   /* Jackpot */
   #jackpot { position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; gap:12px; background:#000e; z-index:5; padding:16px; text-align:center; }
   #jackpot.show { display:flex; }
-  #jackpot .trophy { width:min(70vw, 340px); aspect-ratio:1; border-radius:20px; background:url(/engagement-slots/art/jackpot.webp) center / cover, radial-gradient(circle, #ffe680, #c98a00); display:flex; align-items:center; justify-content:center; font-size:110px; }
+  #jackpot .trophy { width:min(70vw, 340px); aspect-ratio:1; border-radius:20px; background:url(/engagement-slots/art/jackpot.webp) center / cover; box-shadow:0 0 40px #ffcf3f; }
   #jackpot h2 { font:900 clamp(22px, 6vw, 40px) Impact, system-ui, sans-serif; color:var(--gold); margin:0; text-shadow:0 0 16px #ff3fd0; }
   .confetti { position:fixed; top:-30px; z-index:6; pointer-events:none; animation:fall linear forwards; font-size:18px; }
   @keyframes fall { to { transform:translateY(110vh) rotate(720deg); } }
-  @media (max-width:520px) { :root { --h:128px; } .lever { width:38px; transform:scale(.85); } .item { padding:6px; } }
+  @media (max-width:520px) { .lever { transform:scale(.8); } }
 </style>
 </head>
 <body>
 <h1>🎰 The Engagement Slot Machine</h1>
 <div class="machine">
-  <div class="cabinet" id="cabinet">
-    <div class="marquee">ENGAGEMENT 3000 🚀</div>
-    <div class="reels" id="reels"></div>
-    <div class="lights">PULL TO GO VIRAL* &nbsp;·&nbsp; *you will not go viral</div>
-  </div>
+  <div class="cabinet" id="reels"><div class="window"></div><div class="window"></div><div class="window"></div>
+    <div class="panel" id="panel">PULL TO GO VIRAL*<br>*you will not go viral</div></div>
   <div class="lever" id="lever" title="Pull me"><div class="rod"></div><div class="base"></div><div class="knob"></div></div>
 </div>
 <div class="hint" id="hint">Pull the lever (or press space)</div>
 
 <div class="card" id="card">
-  <div class="avatar" id="avatar">😎</div>
+  <div class="avatar"></div>
   <div style="flex:1;min-width:0">
     <div class="who">Founder 🚀 | Building in public
       <svg width="18" height="18" viewBox="0 0 24 24" aria-label="Verified"><path fill="#1d9bf0" d="M22.5 12.5c0-1.6-.9-3-2.2-3.7.2-1.5-.3-3-1.4-4.1s-2.6-1.5-4.1-1.3C14 2 12.6 1 11 1S8 2 7.2 3.4C5.7 3.2 4.2 3.6 3.1 4.7S1.6 7.3 1.8 8.8C.5 9.5-.3 10.9-.3 12.5s.9 3 2.2 3.7c-.2 1.5.3 3 1.4 4.1s2.6 1.5 4.1 1.3c.8 1.4 2.2 2.4 3.8 2.4s3-.9 3.8-2.4c1.5.2 3-.3 4.1-1.4s1.5-2.6 1.3-4.1c1.4-.7 2.3-2.1 2.3-3.6z"/><path fill="#fff" d="M9.8 16.6 6 12.8l1.4-1.4 2.4 2.4 6.1-6.1 1.4 1.4z"/></svg>
@@ -89,7 +84,7 @@
 <div class="stats" id="stats"></div>
 <div class="actions"><button id="post">Post it 🚀</button></div>
 
-<div id="jackpot"><div class="trophy">🏆</div><h2>CONGRATS. You are now a thought leader.</h2><button id="close" style="background:var(--gold)">Accept my destiny</button></div>
+<div id="jackpot"><div class="trophy"></div><h2>CONGRATS. You are now a thought leader.</h2><button id="close" style="background:var(--gold)">Accept my destiny</button></div>
 
 <script>
 const REELS = [
@@ -101,6 +96,7 @@ const REELS = [
   ['Let\'s connect 🤝', 'What are you building? 👇', "Drop your link and I'll check it out 🔥", 'Like if you agree. Follow for more.', 'Road to 1,000 🚀',
    'Reply "AI" and I\'ll DM you the guide.', 'Agree? 👀', '#buildinpublic #indiehackers #SaaS #AI', "Who's with me? 💪", 'Follow back guaranteed 💯'],
 ];
+const ICONS = [['☀️', '🤔', '📌', '📅', '🫣', '🙏', '🤫', '🔥', '🏃', '🌙'], ['🏆', '🤖', '😴', '💸', '⚡', '💎', '🤝', '🦾', '📈', '💯'], ['🤝', '👇', '🔗', '👍', '🚀', '📩', '👀', '#️⃣', '💪', '💯']];
 const STATS = [
   'Predicted reach: 4 impressions (3 are bots)',
   "Engagement: 1 reply, it's 'nice 🔥' from a crypto account",
@@ -113,14 +109,10 @@ const STATS = [
   'Time until someone replies "this": 4 seconds',
   'Grok summary: "User posted."',
 ];
+const pick = a => a[Math.floor(Math.random() * a.length)];
 const $ = id => document.getElementById(id), rand = n => Math.floor(Math.random() * n), wait = ms => new Promise(r => setTimeout(r, ms));
 const LOOPS = 4, N = 10;
 
-// Art: swap the CSS stand-ins for Daniel's Midjourney images once they exist.
-const probe = (src, fn) => { const i = new Image(); i.onload = fn; i.src = src; };
-probe('/engagement-slots/art/cabinet.webp', () => $('cabinet').classList.add('art'));
-probe('/engagement-slots/art/avatar.webp', () => { $('avatar').textContent = ''; });
-probe('/engagement-slots/art/jackpot.webp', () => { document.querySelector('.trophy').textContent = ''; });
 
 // Sound: pre-baked ElevenLabs effects, decoded up front. Missing files just stay silent.
 const ctx = new (window.AudioContext || window.webkitAudioContext)(), sfx = {};
@@ -136,16 +128,16 @@ function play(k, { loop = false, volume = 1 } = {}) {
 
 // Reels: each strip repeats the 10 lines a few times; spinning slides it down to the target.
 const strips = REELS.map((lines, r) => {
-  const w = document.createElement('div'); w.className = 'window';
+  const w = document.querySelectorAll('.window')[r];
   const s = document.createElement('div'); s.className = 'strip';
-  for (let l = 0; l < LOOPS + 1; l++) lines.forEach((t, i) => s.insertAdjacentHTML('beforeend', `<div class="item"><b>#${i + 1}</b>${t}</div>`));
-  w.append(s); $('reels').append(w);
+  for (let l = 0; l < LOOPS + 1; l++) lines.forEach((t, i) => s.insertAdjacentHTML('beforeend', `<div class="item" title="${t}"><span>${ICONS[r][i]}</span><b>${i + 1}</b></div>`));
+  w.append(s);
   return { s, at: rand(N) };
 });
 const itemH = () => strips[0].s.firstChild.offsetHeight;
 function place(st, index, animate, ms) {
   st.s.style.transition = animate ? `transform ${ms}ms cubic-bezier(.15,.7,.25,1.05)` : 'none';
-  st.s.style.transform = `translateY(${-(index - 0.3) * itemH()}px)`;
+  st.s.style.transform = `translateY(${-index * itemH()}px)`;
 }
 strips.forEach(st => place(st, st.at, false));
 addEventListener('resize', () => strips.forEach(st => place(st, st.at, false)));
@@ -155,6 +147,7 @@ async function pull() {
   if (busy) return; busy = true; ctx.resume();
   $('lever').classList.add('down', 'busy'); play('lever');
   ['card', 'stats', 'post'].forEach(id => $(id).classList.remove('show'));
+  $('panel').classList.remove('win'); $('panel').textContent = 'GENERATING THOUGHT LEADERSHIP…';
   await wait(350); $('lever').classList.remove('down');
   pulls++;
   const jackpot = pulls === 3 || Math.random() < 0.05;   // the third pull always makes you a thought leader
@@ -176,6 +169,8 @@ function show(jackpot) {
   $('card').classList.add('show'); $('post').classList.add('show'); $('hint').textContent = 'Pull again for more thought leadership';
   const picks = [...STATS].sort(() => Math.random() - 0.5).slice(0, 3);
   $('stats').innerHTML = picks.map(s => `<div class="stat">📉 ${s}</div>`).join(''); $('stats').classList.add('show');
+  $('panel').innerHTML = jackpot ? 'JACKPOT!!!<br>THOUGHT LEADER' : pick(['NO ENGAGEMENT DETECTED', '4 IMPRESSIONS', 'TRY POSTING MORE', 'THE ALGORITHM IS NOT IMPRESSED']);
+  $('panel').classList.toggle('win', jackpot);
   if (jackpot) { play('jackpot'); confetti(); $('jackpot').classList.add('show'); }
   else { play('coin'); setTimeout(() => play('wahwah', { volume: 0.8 }), 700); }
 }
