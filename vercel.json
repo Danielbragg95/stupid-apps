@@ -2,6 +2,13 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
-    { "source": "/meeting-simulator", "destination": "/meeting-simulator/index.html" }
+    {
+      "source": "/meeting-simulator",
+      "destination": "/meeting-simulator/index.html"
+    },
+    {
+      "source": "/engagement-slots",
+      "destination": "/engagement-slots/index.html"
+    }
   ]
 }

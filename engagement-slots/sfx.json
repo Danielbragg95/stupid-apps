@@ -1,0 +1,8 @@
+{
+  "lever":   { "seconds": 1.5, "text": "Heavy metal slot machine lever pulled down hard, ratcheting creak then a loud mechanical clunk" },
+  "spin":    { "seconds": 2,   "loop": true, "text": "Slot machine reels spinning fast, steady loopable mechanical clicking and ticking, no music" },
+  "stop":    { "seconds": 0.6, "text": "Single heavy slot machine reel stopping, one solid mechanical thunk" },
+  "coin":    { "seconds": 1.5, "text": "A few coins clinking out of a slot machine tray, small sad payout" },
+  "jackpot": { "seconds": 5,   "text": "Casino slot machine jackpot: ringing bells, siren, flashing lights, a flood of coins pouring into a metal tray" },
+  "wahwah":  { "seconds": 2.5, "text": "Sad trombone wah wah wah waaah, comedic failure sound" }
+}

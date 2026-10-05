@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Engagement Slot Machine</title>
+<meta name="description" content="Pull the lever. Win a generic X post.">
+<style>
+  :root { --gold:#ffcf3f; --red:#d7263d; --x:#1d9bf0; --h:116px; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; min-height:100dvh; color:#fff; font:15px/1.4 system-ui, sans-serif; display:flex; flex-direction:column; align-items:center; padding:16px 16px 32px; gap:16px;
+    background:#120024 url(/engagement-slots/art/background.webp) center / cover fixed; background-image:url(/engagement-slots/art/background.webp), radial-gradient(circle at 50% 20%, #5b1a8f, #120024 70%); }
+  h1 { margin:4px 0 0; font-size:clamp(20px, 5vw, 30px); text-shadow:0 0 12px #ff3fd0; text-align:center; }
+
+  /* Cabinet (CSS stand-in until art/cabinet.webp lands) */
+  .machine { display:flex; align-items:center; gap:10px; width:100%; max-width:720px; }
+  .cabinet { flex:1; position:relative; border-radius:28px 28px 16px 16px; padding:18px 16px 22px;
+    background:linear-gradient(#ffd75e, #e0a10b 30%, #b3122a 31%, #7d0a1d); box-shadow:0 0 0 6px #3a0410, 0 0 40px #ff3fd099; }
+  .cabinet.art { background:url(/engagement-slots/art/cabinet.webp) center / 100% 100%; box-shadow:none; }
+  .marquee { text-align:center; font:900 clamp(18px, 5vw, 32px) Impact, system-ui, sans-serif; letter-spacing:2px; color:#fff; padding:8px; margin-bottom:14px;
+    background:#2a0060; border-radius:12px; border:4px dotted var(--gold); animation:bulbs .6s steps(2) infinite; text-shadow:0 0 10px #ff3fd0; }
+  @keyframes bulbs { 50% { border-color:#fff7c2; } }
+  .reels { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; background:#1a0010; padding:8px; border-radius:12px; position:relative; }
+  .reels::after { content:''; position:absolute; left:4px; right:4px; top:calc(8px + var(--h) * .3); height:var(--h); border:3px solid #ff3fd0; border-radius:8px; box-shadow:0 0 14px #ff3fd0; pointer-events:none; } /* payline */
+  .window { height:calc(var(--h) * 1.6); overflow:hidden; background:#fffdf3; border-radius:8px; position:relative;
+    -webkit-mask:linear-gradient(transparent, #000 22%, #000 78%, transparent); mask:linear-gradient(transparent, #000 22%, #000 78%, transparent); }
+  .strip { will-change:transform; }
+  .item { height:var(--h); padding:8px; display:flex; flex-direction:column; justify-content:center; color:#14171a; font-weight:700; font-size:clamp(11px, 2.4vw, 15px); border-bottom:1px dashed #e4dccb; overflow:hidden; }
+  .item b { font:900 12px system-ui; color:var(--red); }
+  .lights { text-align:center; margin-top:12px; color:var(--gold); font-weight:800; font-size:13px; letter-spacing:1px; }
+
+  /* Lever */
+  .lever { width:46px; height:230px; position:relative; flex:none; cursor:grab; touch-action:none; user-select:none; }
+  .lever .rod { position:absolute; left:19px; top:24px; width:8px; height:150px; background:linear-gradient(90deg, #888, #eee, #888); border-radius:4px; transform-origin:bottom; transition:transform .25s; }
+  .lever .knob { position:absolute; left:3px; top:0; width:40px; height:40px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #ff8a9a, var(--red) 60%, #6d0010); box-shadow:0 4px 10px #0008; transition:transform .25s; }
+  .lever .base { position:absolute; left:6px; top:168px; width:34px; height:56px; border-radius:10px; background:linear-gradient(#555, #222); }
+  .lever.down .rod { transform:scaleY(-.6); } .lever.down .knob { transform:translateY(150px); }
+  .lever.busy { cursor:wait; }
+
+  /* Post card */
+  .card { width:100%; max-width:600px; background:#fff; color:#0f1419; border-radius:16px; padding:14px 16px; display:none; gap:12px; box-shadow:0 10px 30px #0008; }
+  .card.show { display:flex; animation:pop .3s; }
+  @keyframes pop { from { transform:scale(.9); opacity:0; } }
+  .avatar { width:48px; height:48px; border-radius:50%; flex:none; background:url(/engagement-slots/art/avatar.webp) center / cover, linear-gradient(135deg, #ffb347, #ff3fd0); display:flex; align-items:center; justify-content:center; font-size:26px; }
+  .who { font-weight:800; display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
+  .who span { color:#536471; font-weight:400; }
+  .text { white-space:pre-line; margin:4px 0 10px; font-size:16px; }
+  .meta { display:flex; justify-content:space-between; color:#536471; font-size:13px; max-width:420px; }
+  .stats { width:100%; max-width:600px; display:none; flex-direction:column; gap:6px; }
+  .stats.show { display:flex; }
+  .stat { background:#000a; border:1px solid #ffffff22; border-radius:10px; padding:8px 12px; font-size:14px; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  button { font:800 16px system-ui; border:0; border-radius:999px; padding:12px 22px; cursor:pointer; }
+  #post { background:var(--x); color:#fff; display:none; } #post.show { display:inline-block; }
+  .hint { color:#fffc; font-size:13px; text-align:center; }
+
+  /* Jackpot */
+  #jackpot { position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; gap:12px; background:#000e; z-index:5; padding:16px; text-align:center; }
+  #jackpot.show { display:flex; }
+  #jackpot .trophy { width:min(70vw, 340px); aspect-ratio:1; border-radius:20px; background:url(/engagement-slots/art/jackpot.webp) center / cover, radial-gradient(circle, #ffe680, #c98a00); display:flex; align-items:center; justify-content:center; font-size:110px; }
+  #jackpot h2 { font:900 clamp(22px, 6vw, 40px) Impact, system-ui, sans-serif; color:var(--gold); margin:0; text-shadow:0 0 16px #ff3fd0; }
+  .confetti { position:fixed; top:-30px; z-index:6; pointer-events:none; animation:fall linear forwards; font-size:18px; }
+  @keyframes fall { to { transform:translateY(110vh) rotate(720deg); } }
+  @media (max-width:520px) { :root { --h:128px; } .lever { width:38px; transform:scale(.85); } .item { padding:6px; } }
+</style>
+</head>
+<body>
+<h1>🎰 The Engagement Slot Machine</h1>
+<div class="machine">
+  <div class="cabinet" id="cabinet">
+    <div class="marquee">ENGAGEMENT 3000 🚀</div>
+    <div class="reels" id="reels"></div>
+    <div class="lights">PULL TO GO VIRAL* &nbsp;·&nbsp; *you will not go viral</div>
+  </div>
+  <div class="lever" id="lever" title="Pull me"><div class="rod"></div><div class="base"></div><div class="knob"></div></div>
+</div>
+<div class="hint" id="hint">Pull the lever (or press space)</div>
+
+<div class="card" id="card">
+  <div class="avatar" id="avatar">😎</div>
+  <div style="flex:1;min-width:0">
+    <div class="who">Founder 🚀 | Building in public
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-label="Verified"><path fill="#1d9bf0" d="M22.5 12.5c0-1.6-.9-3-2.2-3.7.2-1.5-.3-3-1.4-4.1s-2.6-1.5-4.1-1.3C14 2 12.6 1 11 1S8 2 7.2 3.4C5.7 3.2 4.2 3.6 3.1 4.7S1.6 7.3 1.8 8.8C.5 9.5-.3 10.9-.3 12.5s.9 3 2.2 3.7c-.2 1.5.3 3 1.4 4.1s2.6 1.5 4.1 1.3c.8 1.4 2.2 2.4 3.8 2.4s3-.9 3.8-2.4c1.5.2 3-.3 4.1-1.4s1.5-2.6 1.3-4.1c1.4-.7 2.3-2.1 2.3-3.6z"/><path fill="#fff" d="M9.8 16.6 6 12.8l1.4-1.4 2.4 2.4 6.1-6.1 1.4 1.4z"/></svg>
+      <span>@founder_grindset · now</span></div>
+    <div class="text" id="text"></div>
+    <div class="meta"><span>💬 0</span><span>🔁 0</span><span>🤍 0</span><span id="views">📊 4</span></div>
+  </div>
+</div>
+<div class="stats" id="stats"></div>
+<div class="actions"><button id="post">Post it 🚀</button></div>
+
+<div id="jackpot"><div class="trophy">🏆</div><h2>CONGRATS. You are now a thought leader.</h2><button id="close" style="background:var(--gold)">Accept my destiny</button></div>
+
+<script>
+const REELS = [
+  ['gm builders ☀️', 'Unpopular opinion:', 'Reminder for anyone who needs it:', 'Day 47 of building in public.', 'Be honest.',
+   'Just hit 312 followers 🙏', 'Nobody is talking about this:', 'Hot take 🔥', 'I quit my 9 to 5 three weeks ago.', "POV: it's 3am."],
+  ['Consistency beats talent every single time.', "I'm 27, solo founder, building an AI SaaS that replaces 14 tools.", 'Shipped 3 features today while you were sleeping.',
+   '$0 MRR but the vibes are immaculate.', 'Vibe coded a full app in 11 minutes. Zero experience.', 'X Premium acquired. No more excuses.',
+   'Your network is your net worth.', "AI won't replace you. Someone using AI will.", 'The algorithm rewards those who show up.', 'Most people will scroll past this. The 1% won\'t.'],
+  ['Let\'s connect 🤝', 'What are you building? 👇', "Drop your link and I'll check it out 🔥", 'Like if you agree. Follow for more.', 'Road to 1,000 🚀',
+   'Reply "AI" and I\'ll DM you the guide.', 'Agree? 👀', '#buildinpublic #indiehackers #SaaS #AI', "Who's with me? 💪", 'Follow back guaranteed 💯'],
+];
+const STATS = [
+  'Predicted reach: 4 impressions (3 are bots)',
+  "Engagement: 1 reply, it's 'nice 🔥' from a crypto account",
+  'Expected new followers: 0.3',
+  'Replies: "Great insight! DM me for a free audit" ×14',
+  'Shadowban probability: yes',
+  'Your mom liked it. Then unliked it.',
+  'Bookmarked by 1 person: you',
+  'Reposted by @growth_bot_4417 with no comment',
+  'Time until someone replies "this": 4 seconds',
+  'Grok summary: "User posted."',
+];
+const $ = id => document.getElementById(id), rand = n => Math.floor(Math.random() * n), wait = ms => new Promise(r => setTimeout(r, ms));
+const LOOPS = 4, N = 10;
+
+// Art: swap the CSS stand-ins for Daniel's Midjourney images once they exist.
+const probe = (src, fn) => { const i = new Image(); i.onload = fn; i.src = src; };
+probe('/engagement-slots/art/cabinet.webp', () => $('cabinet').classList.add('art'));
+probe('/engagement-slots/art/avatar.webp', () => { $('avatar').textContent = ''; });
+probe('/engagement-slots/art/jackpot.webp', () => { document.querySelector('.trophy').textContent = ''; });
+
+// Sound: pre-baked ElevenLabs effects, decoded up front. Missing files just stay silent.
+const ctx = new (window.AudioContext || window.webkitAudioContext)(), sfx = {};
+['lever', 'spin', 'stop', 'coin', 'jackpot', 'wahwah'].forEach(k =>
+  fetch(`/engagement-slots/audio/${k}.mp3`).then(r => r.ok ? r.arrayBuffer() : Promise.reject())
+    .then(b => new Promise((ok, no) => ctx.decodeAudioData(b, ok, no))).then(buf => { sfx[k] = buf; }).catch(() => {}));
+function play(k, { loop = false, volume = 1 } = {}) {
+  if (!sfx[k]) return null;
+  const s = ctx.createBufferSource(), g = ctx.createGain();
+  s.buffer = sfx[k]; s.loop = loop; g.gain.value = volume; s.connect(g).connect(ctx.destination); s.start();
+  return s;
+}
+
+// Reels: each strip repeats the 10 lines a few times; spinning slides it down to the target.
+const strips = REELS.map((lines, r) => {
+  const w = document.createElement('div'); w.className = 'window';
+  const s = document.createElement('div'); s.className = 'strip';
+  for (let l = 0; l < LOOPS + 1; l++) lines.forEach((t, i) => s.insertAdjacentHTML('beforeend', `<div class="item"><b>#${i + 1}</b>${t}</div>`));
+  w.append(s); $('reels').append(w);
+  return { s, at: rand(N) };
+});
+const itemH = () => strips[0].s.firstChild.offsetHeight;
+function place(st, index, animate, ms) {
+  st.s.style.transition = animate ? `transform ${ms}ms cubic-bezier(.15,.7,.25,1.05)` : 'none';
+  st.s.style.transform = `translateY(${-(index - 0.3) * itemH()}px)`;
+}
+strips.forEach(st => place(st, st.at, false));
+addEventListener('resize', () => strips.forEach(st => place(st, st.at, false)));
+
+let busy = false, pulls = 0, result = [];
+async function pull() {
+  if (busy) return; busy = true; ctx.resume();
+  $('lever').classList.add('down', 'busy'); play('lever');
+  ['card', 'stats', 'post'].forEach(id => $(id).classList.remove('show'));
+  await wait(350); $('lever').classList.remove('down');
+  pulls++;
+  const jackpot = pulls === 3 || Math.random() < 0.05;   // the third pull always makes you a thought leader
+  const n = rand(N); result = strips.map(() => jackpot ? n : rand(N));
+  const spin = play('spin', { loop: true, volume: 0.6 });
+  await Promise.all(strips.map(async (st, r) => {
+    const ms = 1100 + r * 550;
+    place(st, st.at, false); st.s.offsetHeight;          // reset to the first copy, then spin forward
+    place(st, result[r] + N * (LOOPS - 1), true, ms);
+    await wait(ms); play('stop'); st.at = result[r]; place(st, st.at, false);
+  }));
+  try { spin?.stop(); } catch {}
+  show(result[0] === result[1] && result[1] === result[2]);
+  $('lever').classList.remove('busy'); busy = false;
+}
+function postText() { return result.map((i, r) => REELS[r][i]).join('\n\n'); }
+function show(jackpot) {
+  $('text').textContent = postText(); $('views').textContent = `📊 ${1 + rand(9)}`;
+  $('card').classList.add('show'); $('post').classList.add('show'); $('hint').textContent = 'Pull again for more thought leadership';
+  const picks = [...STATS].sort(() => Math.random() - 0.5).slice(0, 3);
+  $('stats').innerHTML = picks.map(s => `<div class="stat">📉 ${s}</div>`).join(''); $('stats').classList.add('show');
+  if (jackpot) { play('jackpot'); confetti(); $('jackpot').classList.add('show'); }
+  else { play('coin'); setTimeout(() => play('wahwah', { volume: 0.8 }), 700); }
+}
+function confetti() {
+  for (let i = 0; i < 120; i++) {
+    const c = document.createElement('div'); c.className = 'confetti';
+    c.textContent = ['🎉', '✨', '💸', '☑️', '🚀', '💯'][rand(6)];
+    c.style.left = Math.random() * 100 + 'vw'; c.style.animationDuration = 2 + Math.random() * 3 + 's'; c.style.animationDelay = Math.random() * 1.5 + 's';
+    document.body.append(c); setTimeout(() => c.remove(), 7000);
+  }
+}
+
+// Lever: click, drag down, or spacebar.
+let dragY = null;
+$('lever').addEventListener('pointerdown', e => { dragY = e.clientY; $('lever').setPointerCapture(e.pointerId); });
+$('lever').addEventListener('pointermove', e => { if (dragY !== null && e.clientY - dragY > 40) { dragY = null; pull(); } });
+$('lever').addEventListener('pointerup', () => { if (dragY !== null) { dragY = null; pull(); } });
+addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); pull(); } });
+$('close').onclick = () => $('jackpot').classList.remove('show');
+$('post').onclick = () => open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(postText() + ' (via stupid-apps.vercel.app/engagement-slots)'), '_blank', 'noopener');
+</script>
+</body>
+</html>
