@@ -29,10 +29,10 @@
 
   /* Lever */
   .lever { width:46px; height:230px; position:relative; flex:none; cursor:grab; touch-action:none; user-select:none; }
-  .lever .rod { position:absolute; left:19px; top:24px; width:8px; height:150px; background:linear-gradient(90deg, #888, #eee, #888); border-radius:4px; transform-origin:bottom; transition:transform .25s; }
-  .lever .knob { position:absolute; left:3px; top:0; width:40px; height:40px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #ff8a9a, var(--red) 60%, #6d0010); box-shadow:0 4px 10px #0008; transition:transform .25s; }
-  .lever .base { position:absolute; left:6px; top:168px; width:34px; height:56px; border-radius:10px; background:linear-gradient(#555, #222); }
-  .lever.down .rod { transform:scaleY(-.6); } .lever.down .knob { transform:translateY(150px); }
+  .lever .rod { position:absolute; left:19px; top:24px; width:8px; height:150px; background:linear-gradient(90deg, #888, #eee, #888); border-radius:4px; transform-origin:bottom; transition:transform .25s; z-index:2; }
+  .lever .knob { position:absolute; left:3px; top:0; width:40px; height:40px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #ff8a9a, var(--red) 60%, #6d0010); box-shadow:0 4px 10px #0008; transition:transform .25s; z-index:3; }
+  .lever .base { position:absolute; left:8px; top:159px; width:30px; height:30px; border-radius:50%; z-index:1; background:radial-gradient(circle at 35% 30%, #fff3c4, #d9a441 55%, #7a4b12); box-shadow:0 2px 6px #0008; } /* pivot hub */
+  .lever.down .rod { transform:scaleY(-.65); } .lever.down .knob { transform:translateY(252px); }
   .lever.busy { cursor:wait; }
 
   /* Post card */
